@@ -4,6 +4,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothHeadset;
+import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -17,6 +21,7 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Set;
 
 import static android.Manifest.permission.RECORD_AUDIO;
 
@@ -29,10 +34,42 @@ public class MainActivity extends AppCompatActivity {
 
     boolean isListening;
 
+    BluetoothAdapter btAdapter;
+    BluetoothHeadset btHeadset;
+    Set<BluetoothDevice> pairedDevices;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        btAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        pairedDevices = btAdapter.getBondedDevices();
+
+        BluetoothProfile.ServiceListener mProfileListener = new BluetoothProfile.ServiceListener() {
+            public void onServiceConnected(int profile, BluetoothProfile proxy) {
+                if (profile == BluetoothProfile.HEADSET) {
+                    btHeadset = (BluetoothHeadset) proxy;
+                }
+            }
+
+            public void onServiceDisconnected(int profile) {
+                if (profile == BluetoothProfile.HEADSET) {
+                    btHeadset = null;
+                }
+            }
+        };
+        btAdapter.getProfileProxy(MainActivity.this, mProfileListener, BluetoothProfile.HEADSET);
+
+        if (btAdapter.isEnabled()) {
+            for (BluetoothDevice tryDevice : pairedDevices) {
+                //This loop tries to start VoiceRecognition mode on every paired device until it finds one that works(which will be the currently in use bluetooth headset)
+                if (btHeadset.startVoiceRecognition(tryDevice)) {
+                    break;
+                }
+            }
+        }
 
         isListening = false;
 
@@ -42,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
         btnVoice = findViewById(R.id.btn_voice);
 
         final Intent speechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
 
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
@@ -73,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onError(int error) {
-                Log.e("onError", error+"");
+                Log.e("onError", error + "");
             }
 
             @Override
@@ -94,16 +131,16 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btnVoice.setOnClickListener(v -> {
-            btnVoice.setText(isListening?"start":"stop");
+            btnVoice.setText(isListening ? "start" : "stop");
             if (isListening) {
                 speechRecognizer.stopListening();
-            }else {
+            } else {
                 speechRecognizer.startListening(speechRecognizerIntent);
             }
             isListening = !isListening;
         });
 
-        if(ContextCompat.checkSelfPermission(this,RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED){
+        if (ContextCompat.checkSelfPermission(this, RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             checkPermission();
         }
 
@@ -111,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            ActivityCompat.requestPermissions(this,new String[]{RECORD_AUDIO},1);
+            ActivityCompat.requestPermissions(this, new String[]{RECORD_AUDIO}, 1);
         }
     }
 
