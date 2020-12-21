@@ -17,8 +17,21 @@
         android:text="Listen..." />
 
     <Button
+        android:id="@+id/btn_headset"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="headset"/>
+
+    <Button
         android:id="@+id/btn_voice"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="voice"/>
+
+    <Button
+        android:id="@+id/btn_reset"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="reset"/>
+
 </LinearLayout>
