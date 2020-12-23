@@ -50,14 +50,47 @@ public class MainActivity extends AppCompatActivity {
 
         resultMessage = "";
 
+        isListening = false;
+
+
+        tvText = findViewById(R.id.tv_text);
+        btnVoice = findViewById(R.id.btn_voice);
+        btnHeadset = findViewById(R.id.btn_headset);
+        btnReset = findViewById(R.id.btn_reset);
+
+        btnHeadset.setOnClickListener(v -> headsetProfile());
+
+        btnReset.setOnClickListener(v -> {
+            resultMessage = "";
+            tvText.setText("");
+        });
+
+
+        btnVoice.setOnClickListener(v -> {
+            btnVoice.setText(isListening ? "start" : "stop");
+            if (isListening) {
+                speechRecognizer.stopListening();
+            } else {
+                startRecognition();
+            }
+            isListening = !isListening;
+        });
+
+        if (ContextCompat.checkSelfPermission(this, RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            checkPermission();
+        }
+
+        setupBluetooth();
+
+    }
+
+    private void setupBluetooth(){
         btAdapter = checkBLESupportForAdapter(this);
         if (btAdapter == null) {
             Log.e("bluetoothAdapter","null");
             btAdapter = BluetoothAdapter.getDefaultAdapter();
         }
-
         pairedDevices = btAdapter.getBondedDevices();
-
         BluetoothProfile.ServiceListener mProfileListener = new BluetoothProfile.ServiceListener() {
             public void onServiceConnected(int profile, BluetoothProfile proxy) {
                 if (profile == BluetoothProfile.HEADSET) {
@@ -65,7 +98,6 @@ public class MainActivity extends AppCompatActivity {
                     btHeadset = (BluetoothHeadset) proxy;
                 }
             }
-
             public void onServiceDisconnected(int profile) {
                 if (profile == BluetoothProfile.HEADSET) {
                     btHeadset = null;
@@ -73,50 +105,30 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         btAdapter.getProfileProxy(MainActivity.this, mProfileListener, BluetoothProfile.HEADSET);
+    }
 
-
-
-        isListening = false;
-
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-
-        tvText = findViewById(R.id.tv_text);
-        btnVoice = findViewById(R.id.btn_voice);
-        btnHeadset = findViewById(R.id.btn_headset);
-        btnReset = findViewById(R.id.btn_reset);
-
-        btnHeadset.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (btAdapter.isEnabled()) {
-                    Log.e("bAdapter", "enabled");
-                    for (BluetoothDevice tryDevice : pairedDevices) {
-                        Log.e("device", tryDevice.getName());
-                        //This loop tries to start VoiceRecognition mode on every paired device until it finds one that works(which will be the currently in use bluetooth headset)
-                        if (btHeadset != null && btHeadset.startVoiceRecognition(tryDevice)) {
-                            Log.e("headset", tryDevice.getName());
-                            btnHeadset.setText("headset:"+tryDevice.getName());
-                            break;
-                        }
-                    }
-                }else {
-                    Log.e("bAadapter","disabled");
+    private void headsetProfile(){
+        if (btAdapter.isEnabled()) {
+            Log.e("bAdapter", "enabled");
+            for (BluetoothDevice tryDevice : pairedDevices) {
+                Log.e("device", tryDevice.getName());
+                //This loop tries to start VoiceRecognition mode on every paired device until it finds one that works(which will be the currently in use bluetooth headset)
+                if (btHeadset != null && btHeadset.startVoiceRecognition(tryDevice)) {
+                    Log.e("headset", tryDevice.getName());
+                    btnHeadset.setText("headset:"+tryDevice.getName());
+                    break;
                 }
             }
-        });
+        }else {
+            Log.e("bAadapter","disabled");
+        }
+    }
 
-        btnReset.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                resultMessage = "";
-                tvText.setText("");
-            }
-        });
-
+    private void startRecognition(){
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         final Intent speechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.ENGLISH);
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
             @Override
             public void onReadyForSpeech(Bundle params) {
@@ -129,9 +141,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onRmsChanged(float rmsdB) {
-                Log.e("onRmsChanged", "yes");
-            }
+            public void onRmsChanged(float rmsdB) {}
 
             @Override
             public void onBufferReceived(byte[] buffer) {
@@ -171,21 +181,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("onEvent", "yes");
             }
         });
-
-        btnVoice.setOnClickListener(v -> {
-            btnVoice.setText(isListening ? "start" : "stop");
-            if (isListening) {
-                speechRecognizer.stopListening();
-            } else {
-                speechRecognizer.startListening(speechRecognizerIntent);
-            }
-            isListening = !isListening;
-        });
-
-        if (ContextCompat.checkSelfPermission(this, RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            checkPermission();
-        }
-
+        speechRecognizer.startListening(speechRecognizerIntent);
     }
 
     public static BluetoothAdapter checkBLESupportForAdapter(Context context) {
